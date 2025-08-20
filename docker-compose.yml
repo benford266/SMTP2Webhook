@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  smtp2webhook:
+    build: .
+    container_name: smtp2webhook
+    ports:
+      - "25:25"
+      - "587:587"
+    environment:
+      - SMTP_PORT=25
+      - SMTP_HOST=0.0.0.0
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - WEBHOOK_TIMEOUT=10000
+    restart: unless-stopped
+    networks:
+      - smtp2webhook
+
+networks:
+  smtp2webhook:
+    driver: bridge
