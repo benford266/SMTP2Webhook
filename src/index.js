@@ -16,18 +16,56 @@ const config = {
   }
 };
 
-async function sendWebhook(emailData) {
+function extractToField(emailData) {
+  if (!emailData.to) return '';
+  if (typeof emailData.to === 'string') {
+    return emailData.to;
+  }
+  if (emailData.to.text) {
+    return emailData.to.text;
+  }
+  if (Array.isArray(emailData.to.value)) {
+    return emailData.to.value.map(addr => addr.address).join(', ');
+  }
+  if (Array.isArray(emailData.to)) {
+    return emailData.to.map(addr => addr.address || addr).join(', ');
+  }
+  return '';
+}
+
+async function sendWebhook(emailData, envelope) {
   if (!config.webhook.url) {
     console.error('WEBHOOK_URL not configured');
     return;
   }
 
   try {
+    // Extract from address from envelope or parsed email
+    let fromAddress = '';
+    if (envelope?.mailFrom?.address) {
+      fromAddress = envelope.mailFrom.address;
+    } else if (emailData.from?.text) {
+      fromAddress = emailData.from.text;
+    } else if (emailData.from?.value?.[0]?.address) {
+      fromAddress = emailData.from.value[0].address;
+    } else if (typeof emailData.from === 'string') {
+      fromAddress = emailData.from;
+    }
+
+    // Extract to addresses from envelope or parsed email
+    let toAddresses = '';
+    if (envelope?.rcptTo && Array.isArray(envelope.rcptTo)) {
+      toAddresses = envelope.rcptTo.map(rcpt => rcpt.address).join(', ');
+    } else {
+      toAddresses = extractToField(emailData);
+    }
+
+
     const payload = {
       subject: emailData.subject || '',
       body: emailData.text || emailData.html || '',
-      from: emailData.from?.text || '',
-      to: emailData.to?.text || '',
+      from: fromAddress,
+      to: toAddresses,
       timestamp: new Date().toISOString()
     };
 
@@ -56,9 +94,18 @@ const server = new SMTPServer({
     stream.on('end', async () => {
       try {
         const parsed = await simpleParser(emailData);
-        console.log(`Received email: ${parsed.subject} from ${parsed.from?.text}`);
+        // Get sender from parsed email or envelope
+        let sender = 'unknown';
+        if (parsed.from?.text) {
+          sender = parsed.from.text;
+        } else if (parsed.from?.value?.[0]?.address) {
+          sender = parsed.from.value[0].address;
+        } else if (session.envelope?.mailFrom?.address) {
+          sender = session.envelope.mailFrom.address;
+        }
+        console.log(`Received email: ${parsed.subject} from ${sender}`);
         
-        await sendWebhook(parsed);
+        await sendWebhook(parsed, session.envelope);
         callback();
       } catch (error) {
         console.error('Error processing email:', error);
