@@ -10,8 +10,8 @@ services:
     environment:
       - SMTP_PORT=25
       - SMTP_HOST=0.0.0.0
-      - WEBHOOK_URL=${WEBHOOK_URL}
-      - WEBHOOK_TIMEOUT=10000
+      - AZURE_COMMUNICATION_CONNECTION_STRING=${AZURE_COMMUNICATION_CONNECTION_STRING}
+      - AZURE_SENDER_ADDRESS=${AZURE_SENDER_ADDRESS}
     restart: unless-stopped
     networks:
       - smtp2webhook

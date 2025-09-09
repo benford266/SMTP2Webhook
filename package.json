@@ -1,16 +1,17 @@
 {
   "name": "smtp2webhook",
   "version": "1.0.0",
-  "description": "SMTP relay that forwards emails to Azure Logic Apps via webhook",
+  "description": "SMTP relay that forwards emails using Azure Communication Services",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
-    "smtp-server": "^3.13.0",
-    "axios": "^1.6.0",
-    "mailparser": "^3.6.5"
+    "@azure/communication-email": "^1.0.0",
+    "dotenv": "^17.2.2",
+    "mailparser": "^3.6.5",
+    "smtp-server": "^3.13.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
