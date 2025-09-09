@@ -1,12 +1,12 @@
 # SMTP2Webhook
 
-A lightweight Docker container that acts as an SMTP relay/postbox, collecting incoming emails and forwarding them to Azure Logic Apps via webhooks.
+A lightweight Docker container that acts as an SMTP relay/postbox, collecting incoming emails and forwarding them using Azure Communication Services.
 
 ## Features
 
 - **SMTP Server**: Listens on ports 25 and 587 for incoming emails
 - **Email Parsing**: Extracts subject, body, sender, and recipient information
-- **Webhook Integration**: Forwards email data as JSON to Azure Logic Apps
+- **Azure Communication Services**: Forwards emails using Azure Communication Services
 - **Docker Ready**: Containerized for easy deployment
 - **Environment Configuration**: Configurable via environment variables
 - **Error Handling**: Robust error handling with logging
@@ -22,7 +22,9 @@ A lightweight Docker container that acts as an SMTP relay/postbox, collecting in
 
 2. **Edit `.env` file**:
    ```env
-   WEBHOOK_URL=https://your-logic-app.azurewebsites.net/api/webhook
+   ACS_CONNECTION_STRING=endpoint=https://your-acs-resource.communication.azure.com/;accesskey=your-access-key
+   FORWARD_TO_EMAIL=destination@example.com
+   FROM_EMAIL=sender@your-domain.com
    ```
 
 3. **Deploy with Docker Compose**:
@@ -40,26 +42,23 @@ A lightweight Docker container that acts as an SMTP relay/postbox, collecting in
 |----------|---------|-------------|
 | `SMTP_PORT` | `25` | SMTP server port |
 | `SMTP_HOST` | `0.0.0.0` | SMTP server bind address |
-| `WEBHOOK_URL` | *required* | Azure Logic App webhook URL |
-| `WEBHOOK_TIMEOUT` | `10000` | Webhook request timeout (ms) |
+| `ACS_CONNECTION_STRING` | *required* | Azure Communication Services connection string |
+| `FORWARD_TO_EMAIL` | *required* | Email address to forward messages to |
+| `FROM_EMAIL` | *required* | From email address for forwarded messages |
 
 ### Docker Compose
 
 The included `docker-compose.yml` exposes ports 25 and 587 and includes restart policies.
 
-## Webhook Payload
+## Email Forwarding
 
-Emails are forwarded as JSON with the following structure:
+Emails are forwarded using Azure Communication Services with the following behavior:
 
-```json
-{
-  "subject": "Email Subject",
-  "body": "Email body content (text or HTML)",
-  "from": "sender@example.com",
-  "to": "recipient@example.com",
-  "timestamp": "2024-01-01T12:00:00.000Z"
-}
-```
+- **Subject**: Original subject is preserved with optional prefix
+- **Body**: Original email content (text or HTML) is forwarded
+- **From**: Uses the configured `FROM_EMAIL` address
+- **To**: Uses the configured `FORWARD_TO_EMAIL` address
+- **Original Sender**: Included in the forwarded email body for reference
 
 ## Development
 
@@ -72,7 +71,9 @@ Emails are forwarded as JSON with the following structure:
 
 2. **Set environment variables**:
    ```bash
-   export WEBHOOK_URL=https://your-logic-app.azurewebsites.net/api/webhook
+   export ACS_CONNECTION_STRING=endpoint=https://your-acs-resource.communication.azure.com/;accesskey=your-access-key
+   export FORWARD_TO_EMAIL=destination@example.com
+   export FROM_EMAIL=sender@your-domain.com
    ```
 
 3. **Run in development mode**:
@@ -84,7 +85,11 @@ Emails are forwarded as JSON with the following structure:
 
 ```bash
 docker build -t smtp2webhook .
-docker run -p 25:25 -p 587:587 -e WEBHOOK_URL=your-webhook-url smtp2webhook
+docker run -p 25:25 -p 587:587 \
+  -e ACS_CONNECTION_STRING=your-acs-connection-string \
+  -e FORWARD_TO_EMAIL=destination@example.com \
+  -e FROM_EMAIL=sender@your-domain.com \
+  smtp2webhook
 ```
 
 ## Security Considerations
@@ -92,13 +97,14 @@ docker run -p 25:25 -p 587:587 -e WEBHOOK_URL=your-webhook-url smtp2webhook
 - The SMTP server accepts all emails without authentication
 - Ensure proper network security (firewall rules, VPC configuration)
 - Consider implementing rate limiting for production use
-- Validate webhook URLs to prevent SSRF attacks
+- Secure your Azure Communication Services connection string
+- Configure proper sender authentication (SPF/DKIM) for your domain
 
 ## Logging
 
 The service logs:
 - Incoming email details (subject and sender)
-- Webhook delivery status
+- Email forwarding status via Azure Communication Services
 - Error conditions
 
 ## Troubleshooting
@@ -106,8 +112,9 @@ The service logs:
 ### Common Issues
 
 1. **Port binding errors**: Ensure ports 25/587 are not in use by other services
-2. **Webhook failures**: Check Azure Logic App URL and network connectivity
+2. **Email forwarding failures**: Check Azure Communication Services connection string and permissions
 3. **Permission errors**: Ensure the container has proper network permissions
+4. **Authentication errors**: Verify your Azure Communication Services credentials and domain configuration
 
 ### Testing SMTP
 
